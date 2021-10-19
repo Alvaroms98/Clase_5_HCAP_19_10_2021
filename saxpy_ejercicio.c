@@ -58,12 +58,12 @@ for (i=0;i<LIM;i++)
 
 //Poner aqui version de saxpy con SSE 
 
-__m256 *ptrx = (__m256 *) x;
-__m256 *ptry = (__m256 *) y;
-__m256 a256 = _mm256_set1_ps(a);
+__m128 *ptrx = (__m128 *) x;
+__m128 *ptry = (__m128 *) y;
+__m128 a128 = _mm_set_ps1(a);
 
 for (i=0; i<LIM; i+=8){
-    *ptry = _mm256_add_ps(*ptry, _mm256_mul_ps(a256, *ptrx));
+    *ptry = _mm_add_ps(*ptry, _mm_mul_ps(a128, *ptrx));
     ptry++;ptrx++;
 }
 
