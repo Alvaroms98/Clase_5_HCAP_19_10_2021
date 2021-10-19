@@ -58,6 +58,15 @@ for (i=0;i<LIM;i++)
 
 //Poner aqui version de saxpy con SSE 
 
+__m256 *ptrx = (__m256 *) x;
+__m256 *ptry = (__m256 *) y;
+__m256 a256 = _mm256_set1_ps(a);
+
+for (i=0; i<LIM; i+=8){
+    *ptry = _mm256_add_ps(*ptry, _mm256_mul_ps(a256, *ptrx));
+    ptry++;ptrx++;
+}
+
  printf("vector y tras saxpy sse: \n ")  ;
 
 for (i=0;i<LIM;i++)
