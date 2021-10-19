@@ -62,7 +62,7 @@ __m128 *ptrx = (__m128 *) x;
 __m128 *ptry = (__m128 *) y;
 __m128 a128 = _mm_set_ps1(a);
 
-for (i=0; i<LIM; i+=8){
+for (i=0; i<LIM; i+=4){
     *ptry = _mm_add_ps(*ptry, _mm_mul_ps(a128, *ptrx));
     ptry++;ptrx++;
 }
