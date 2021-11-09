@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <xmmintrin.h>
 #include <immintrin.h>
+#include <string.h>
 
 void Print_matrix(double C[], int n);
 void To_blocked(double A[], int n, int b);
@@ -15,7 +16,7 @@ void matprod(double *A, double *B, double *C, int n);
 
 int main( int argc, char *argv[] ) {
 
-  int  n=1600,i,k, tb=16;
+  int  n=8,i,k, tb=4;
   clock_t tic,toc;
   int nb=n/tb; //numero de bloques
   
@@ -29,40 +30,41 @@ int main( int argc, char *argv[] ) {
 
   /* Lo probamos */
   int j;
-  for( j=0; j<n; j++ ) {
-    for( i=0; i<n; i++ ) {
-      A[i+j*n] = ((double) rand()/ RAND_MAX);
-    }
-  }
    for( j=0; j<n; j++ ) {
-    for( i=0; i<n; i++ ) {
-      B[i+j*n] = ((double) rand()/ RAND_MAX);
-    }
-  } 
-tic = clock();
-matprod(A,B,C,n);
-toc = clock();
-printf("\n Elapsed: %f seconds\n", (double)(toc - tic) / CLOCKS_PER_SEC);
-//     Print_matrix(C, n);
-//
-         for( j=0; j<n; j++ ) {
-    for( i=0; i<n; i++ ) {
-      C[i+j*n] = 0.0;
-    }
-  }
+      for( i=0; i<n; i++ ) {
+         A[i+j*n] = ((double) rand()/ RAND_MAX);
+      }
+   }
+   for( j=0; j<n; j++ ) {
+      for( i=0; i<n; i++ ) {
+         B[i+j*n] = ((double) rand()/ RAND_MAX);
+      }
+   } 
+   tic = clock();
+   matprod(A,B,C,n);
+   toc = clock();
+   printf("\n Elapsed: %f seconds\n", (double)(toc - tic) / CLOCKS_PER_SEC);
+
+   Print_matrix(C, n);
+
+   for( j=0; j<n; j++ ) {
+      for( i=0; i<n; i++ ) {
+         C[i+j*n] = 0.0;
+      }
+   }
        /*a bloques con copia*/  
    tic = clock();
-     To_blocked(A, n, tb);
+   To_blocked(A, n, tb);
    To_blocked(B, n, tb);
    Blocked_mat_mult(A,B,C,nb,tb);
-         From_blocked(C, n, tb);
-toc = clock();
-printf("\n Elapsed bloques con copia: %f seconds\n", (double)(toc - tic) / CLOCKS_PER_SEC);
+   From_blocked(C, n, tb);
+   toc = clock();
+   printf("\n Elapsed bloques con copia: %f seconds\n", (double)(toc - tic) / CLOCKS_PER_SEC);
 
- //  Print_matrix(C, n);       
-  free(A);
-  free(B);
-    free(C);
+   Print_matrix(C, n);       
+   free(A);
+   free(B);
+   free(C);
       return 0;
 }
 
@@ -171,6 +173,27 @@ void Blocked_mat_mult(double *A, double *B, double *C,  int n_bar,int tb)
       //      *(c_p + i*tb + j) += 
       //         (*(a_p + i*tb+k))*(*(b_p + k*tb + j));
 }  /* Mult_add */ 
+
+void Mult_add_avx(double *A, double *B, double *C,int i_bar, int j_bar, int k_bar, int n_bar, int tb) 
+{
+   int b_sqr=tb*tb;
+   double *c_p = C+(i_bar + j_bar*n_bar)*b_sqr;;
+   double *a_p = A + (i_bar + k_bar*n_bar)*b_sqr;
+   double *b_p = B + (k_bar+ j_bar*n_bar )*b_sqr;
+
+   // Versión básica
+   __m256d *c_p_avx = (__m256d*) c_p;
+   __m256d *a_p_avx = (__m256d*) a_p;
+   __m256d *b_p_avx = (__m256d*) b_p;
+   int i, j, k;
+   for (j = 0; j < tb; j++){
+      for (k = 0; k < tb; k++){
+         for (i = 0; i < tb; i++){
+            *c_p_avx = _mm256_add_pd(*c_p_avx, _mm256_mul_pd())
+         }
+      }
+   }
+}
 
 
 void matprod(double *A, double *B, double *C, int n)
