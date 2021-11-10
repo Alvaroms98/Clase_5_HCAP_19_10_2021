@@ -21,9 +21,12 @@ float randfloat()
 
 int main(){
   
-float y[LIM],x[LIM],yc[LIM],a;
+float *y,*x,*yc,a;
 int i,j;
 a=2.0;
+y  = (float*) malloc(sizeof(float)*LIM);
+yc = (float*) malloc(sizeof(float)*LIM);
+x  = (float*) malloc(sizeof(float)*LIM);
 
 for (i=0;i<LIM;i++)
 {x[i]=-randfloat();
@@ -76,4 +79,8 @@ for (i=0;i<LIM;i++)
   {//printf("%f ",x[i]);
    printf("%f ",y[i]);
   }
+
+  free(y);
+  free(yc);
+  free(x);
 }
