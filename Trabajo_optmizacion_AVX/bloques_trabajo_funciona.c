@@ -20,7 +20,7 @@ void print_double_avx(__m256d *vec, int fila, int columna);
 
 int main( int argc, char *argv[] ) {
 
-  int  n=32,i,k, tb=16;
+  int  n=3200,i,k, tb=16;
   clock_t tic,toc;
   int nb=n/tb; //numero de bloques
   
@@ -49,7 +49,7 @@ int main( int argc, char *argv[] ) {
    toc = clock();
    printf("\n Elapsed: %f seconds\n", (double)(toc - tic) / CLOCKS_PER_SEC);
 
-   Print_matrix(C, n);
+   //Print_matrix(C, n);
 
    for( j=0; j<n; j++ ) {
       for( i=0; i<n; i++ ) {
@@ -65,7 +65,7 @@ int main( int argc, char *argv[] ) {
    toc = clock();
    printf("\n Elapsed bloques con copia: %f seconds\n", (double)(toc - tic) / CLOCKS_PER_SEC);
 
-   Print_matrix(C, n);       
+   //Print_matrix(C, n);       
    _mm_free(A);
    _mm_free(B);
    _mm_free(C);
@@ -91,6 +91,7 @@ void To_blocked(double A[], int n, int b) {
    int i_bar, j_bar;  // index block rows and block cols
    int n_bar = n/b;
    double *a_p, *t_p;
+   __m256d tmp;
 
    double *T = _mm_malloc(n*n*sizeof(double),ALIGN);
    if (T == NULL) {
@@ -106,8 +107,10 @@ void To_blocked(double A[], int n, int b) {
          // Copy block into contiguous locations in T
          a_p = A + (i_bar*b + j_bar*b*n);
          for (j = 0; j < b; j++, a_p += (n-b)) 
-            for (i = 0; i < b; i++) {
-               *t_p++ = *a_p++;
+            for (i = 0; i < b; i+=4) {
+                tmp = _mm256_loadu_pd(a_p);
+                _mm256_storeu_pd(t_p, tmp);
+                a_p+=4; t_p+=4;
             }
       }   
 
@@ -121,6 +124,7 @@ void From_blocked(double C[], int n, int b) {
    int i_bar, j_bar;  // index blocks of C
    int n_bar = n/b;
    double *c_p, *t_p;
+   __m256d tmp;
 
    double *T = _mm_malloc(n*n*sizeof(double),ALIGN);
    if (T == NULL) {
@@ -136,8 +140,10 @@ void From_blocked(double C[], int n, int b) {
          // Copy block into correct locations in T
          t_p = T + (i_bar*b + j_bar*b*n);
          for (j = 0; j < b; j++, t_p += (n-b))
-            for (i = 0; i < b; i++) {
-               *t_p++ = *c_p++;
+            for (i = 0; i < b; i+=4) {
+                tmp = _mm256_loadu_pd(c_p);
+                _mm256_storeu_pd(t_p, tmp);
+                c_p+=4; t_p+=4;
             }
       }
 
@@ -200,7 +206,7 @@ void Mult_add_avx(double *A, double *B, double *C,int i_bar, int j_bar, int k_ba
                 // printf("b_vec (columna): ");
                 // print_double_avx(&b_vec, k, j);
 
-                tmp = _mm256_mul_pd(a_vec,b_vec);
+                tmp = _mm256_mul_pd(a_vec, b_vec);
                 // printf("Mult: ");
                 // print_double_avx(&tmp, 0, 0);
 
