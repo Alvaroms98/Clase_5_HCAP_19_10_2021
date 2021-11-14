@@ -11,8 +11,10 @@ void From_blocked(double C[], int n, int b);
 void Blocked_mat_mult(double *A, double *B, double *C,  int n_bar,int tb);
 void Mult_add(double *A, double *B, double *C,int i_bar, int j_bar, int k_bar, int n_bar, int tb);
 void Mult_add_avx(double *A, double *B, double *C,int i_bar, int j_bar, int k_bar, int n_bar, int tb);
+void Mult_add_avx2(double *A, double *B, double *C,int i_bar, int j_bar, int k_bar, int n_bar, int tb);
 void matprod(double *A, double *B, double *C, int n);
 void print_double_avx(__m256d *vec, int fila, int columna);
+void print_128_avx(__m128d *vec);
 void To_blocked_filas(double A[], int n, int b);
 
 
@@ -186,7 +188,7 @@ void Blocked_mat_mult(double *A, double *B, double *C,  int n_bar,int tb)
       for (k_bar = 0; k_bar < n_bar; k_bar++) {
        //  Zero_C(i_bar, j_bar);
          for (i_bar = 0; i_bar < n_bar; i_bar++) 
-            Mult_add_avx(A, B, C, i_bar, j_bar, k_bar,n_bar,tb);
+            Mult_add_avx2(A, B, C, i_bar, j_bar, k_bar,n_bar,tb);
       }
 }  /* Blocked_mat_mult */
 
@@ -221,6 +223,8 @@ void Mult_add_avx(double *A, double *B, double *C,int i_bar, int j_bar, int k_ba
    __m256d *c_avx = (__m256d*) c_p;
    __m256d *b_avx = (__m256d*) b_p;
    __m256d a_vec,tmp,b_vec;
+   __m128d hi128;
+   __m128d dot;
    double suma = 0.0;
 
    int i, j, k;
@@ -228,13 +232,68 @@ void Mult_add_avx(double *A, double *B, double *C,int i_bar, int j_bar, int k_ba
       for (i = 0; i < tb; i++){
          for (k = 0; k < tb; k+=4){
             a_vec = _mm256_set_pd(a_p[i+(k+3)*tb], a_p[i+(k+2)*tb], a_p[i+(k+1)*tb], a_p[i+(k+0)*tb]);
-            b_vec = _mm256_load_pd(b_p+k+j*tb);
+            b_vec = _mm256_loadu_pd(b_p+k+j*tb);
+            printf("a_vec (fila): ");
+            print_double_avx(&a_vec, i, k);
+            printf("b_vec (columna): ");
+            print_double_avx(&b_vec, k, j);
+
             tmp = _mm256_mul_pd(a_vec,b_vec);
-            //printf("Mult: ");
-            //print_double_avx(&tmp, 0, 0);
+            printf("Mult: ");
+            print_double_avx(&tmp, 0, 0);
+
             tmp = _mm256_hadd_pd(tmp,tmp);
-            //printf("Suma horizontal: ");
-            //print_double_avx(&tmp, 0, 0);
+            printf("Suma horizontal: ");
+            print_double_avx(&tmp, 0, 0);
+
+            hi128 = _mm256_extractf128_pd(tmp,1);
+            printf("Extraemos los dos doubles altos de tmp: ");
+            print_128_avx(&hi128);
+            __m128d tmp2 = _mm_set_pd(tmp[0],tmp[1]);
+            dot = _mm_add_pd((__m128d)tmp2, hi128);
+            printf("Resultado en el primer digito: ");
+            print_128_avx(&dot);
+
+            suma += dot[0];
+         }
+         printf("[%d,%d] Suma total: %f\n\n",i,j,suma);
+         c_p[i+j*tb] += suma;
+         suma = 0.0;
+      }
+   }
+}
+
+void Mult_add_avx2(double *A, double *B, double *C,int i_bar, int j_bar, int k_bar, int n_bar, int tb) 
+{
+   int b_sqr=tb*tb;
+   double *c_p = C +( i_bar + j_bar*n_bar)*b_sqr;
+   double *a_p = A + (i_bar + k_bar*n_bar)*b_sqr;
+   double *b_p = B + (k_bar + j_bar*n_bar)*b_sqr;
+
+   __m256d *c_avx = (__m256d*) c_p;
+   __m256d *b_avx = (__m256d*) b_p;
+   __m256d a_vec,tmp,b_vec;
+   double suma = 0.0;
+
+   int i, j, k;
+   for (j = 0; j < tb; j++){
+      for (i = 0; i < tb; i++){
+         for (k = 0; k < tb; k+=4){
+            a_vec = _mm256_set_pd(a_p[i+(k+3)*tb], a_p[i+(k+2)*tb], a_p[i+(k+1)*tb], a_p[i+(k+0)*tb]);
+            b_vec = _mm256_loadu_pd(b_p+k+j*tb);
+            // printf("a_vec (fila): ");
+            // print_double_avx(&a_vec, i, k);
+            // printf("b_vec (columna): ");
+            // print_double_avx(&b_vec, k, j);
+
+            tmp = _mm256_mul_pd(a_vec,b_vec);
+            // printf("Mult: ");
+            // print_double_avx(&tmp, 0, 0);
+
+            tmp = _mm256_hadd_pd(tmp,tmp);
+            // printf("Suma horizontal: ");
+            // print_double_avx(&tmp, 0, 0);
+
             suma += tmp[0] + tmp[2];
          }
          //printf("[%d,%d] Suma total: %f\n\n",i,j,suma);
@@ -248,6 +307,12 @@ void print_double_avx(__m256d *vec, int fila, int columna){
    double elem [4];
    memcpy(elem,vec,sizeof(double)*4);
    printf("avx[%d,%d]: %f %f %f %f\n", fila,columna,elem[0],elem[1],elem[2],elem[3]);
+}
+
+void print_128_avx(__m128d *vec){
+   double elem [2];
+   memcpy(elem,vec,sizeof(double)*2);
+   printf("2 high double from tmp: %f %f\n",elem[0],elem[1]);
 }
 
 
